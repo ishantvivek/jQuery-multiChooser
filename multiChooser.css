@@ -1,0 +1,140 @@
+body {
+   background-color: #c8e6ed;
+}
+.main {
+    max-width: 1000px;
+    display: flex;
+    justify-content: space-evenly;
+    background-color: #fff;
+}
+
+ul {
+    min-width: 420px;
+    color: #000;
+    list-style: none;
+    padding: 5px 20px;
+    height: 50vh;
+    overflow-y: auto;
+    margin: 0;
+}
+
+ul li {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 10px;
+    align-items: center;
+    margin-bottom: 4px;
+    user-select: none;
+}
+
+ul li:focus, .columnChooser ul li span:focus{
+    outline: 1px solid black;
+}
+
+ul li:hover{
+    background-color: #e7f4f7;
+}
+
+li:nth-child(even) {
+    background-color: #eeeeee;
+}
+
+.ui-state-highlight {
+    background-color: #9bd1de !important;
+}
+
+.dragButton, .dropButton {
+    text-align: center;
+    cursor: pointer;
+    border: 0;
+    margin: 0;
+    margin-left: 15px;
+    padding: 7px 0;
+}
+
+.dragBox, .dropBox {
+    padding: 5px 0px;
+    position: relative;
+}
+
+#dragChkBox, #dropChkBox, #selectAlldropChkBox {
+    vertical-align: middle;
+}
+
+.buttonBox {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    border-left: 1px solid lightgray;
+    border-right: 1px solid lightgray;
+}
+
+.buttonBoxHdr {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.buttonBoxHdr span {
+    background-color: #0a7ea9;
+    text-align: center;
+    border-radius: 2px;
+    padding: 5px;
+    color: white;
+    cursor: pointer;
+}
+
+.selectAlldrag, .selectAlldrop {
+    align-items: center;
+    justify-content: space-between;
+    display: flex;
+    padding: 5px 20px 8px 29px;
+    border-bottom: 1px solid lightgray;
+}
+
+.selectAlldrop {
+    align-items: center;
+    justify-content: space-between;
+}
+
+.selectAlldrag label, .selectAlldrop label{
+    user-select: none;
+}
+
+.navigator {
+    display: flex;
+    gap: 0.5em;
+}
+
+.dropUpNav, .dropDownNav {
+    width: 1.5em;
+    cursor: pointer;
+    background: #0a7ea9;
+    color: white;
+    text-align: center;
+    user-select: none;
+}
+
+.upButton, .downButton {
+    width: 1.5em;
+    cursor: pointer;
+    background: #0a7ea9;
+    color: white;
+    text-align: center;
+    user-select: none;
+    border-radius: 3px;
+    padding: 1px;
+}
+
+.upButton{
+    margin-right: 8px;
+    margin-left: auto;
+}
+
+.noData {
+    position: absolute;
+    top: 50%;
+    left: 40%;
+    color: lightgray;
+    user-select: none;
+}
