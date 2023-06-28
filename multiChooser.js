@@ -3,7 +3,7 @@
   * Created by Ishant Vivek <ishantvivek1311@gmail.com>
 
   * A plugin created for specific purpose of choosing multiple options with elegant drop down list of checkboxes.
-  * This plugin depends on jQuery and i18n.
+  * This plugin depends on jQuery.
 
   * Call the init() method first with the the id/class of the container element and options where the plugin will intialised.
   * This will create the HTML for the selection controls.
@@ -19,480 +19,545 @@
                        given. E.g: [ option1, option2, option3 ]
         selectedList: Array list of the keys which will appear on the selected columns(pre-selected). Note: list of keys given in columnPair must be
                        given. E.g: [ option1, option2, option3 ]
+        onElementChange: An event change function to execute specified operation on addition or removal of a element.
 
   * Methods are also available for the following.
-        ** done: It returns HTML elements of selectedList, parent container of selected elements and array list of selected items.
+        ** getSelectedPreferences: It returns HTML elements of selectedList, parent container of selected elements and array list of selected items.
                  - selectedList, parentElement, list
+        ** resetToDefault: It resets the availableList and selectedList to the default list provided.
 */
 
-var multiChooser = multiChooser || (function($) {
+var multiChooser =
+    multiChooser ||
+    (function($) {
+        let selectedList;
+        let availableList;
+        let totalList;
+        let columnPair;
+        let $draggable;
+        let $droppable;
 
-    let selectedList;
-    let availableList;
-    let columnPair;
+        let regionalDefaults = {
+            selectAll: 'Select All',
+            filter: 'Filter',
+            moveRight: 'Move to right',
+            removeRight: 'Remove from right',
+            moveUp: '↑',
+            moveDown: '↓',
+            moveUpNavigator: '↑↑',
+            moveDownNavigator: '↓↓',
+            moveUpNavigatorTitle: 'Move one or more elements up',
+            moveDownNavigatorTitle: 'Move one or more elements down',
+            moveUpTitle: 'Move up',
+            moveDownTitle: 'Move down',
+            moveSelected: '>',
+            removeSelected: '<',
+            moveAll: '>>',
+            removeAll: '<<',
+            moveSelectedTitle: 'Move selected to right',
+            removeSelectedTitle: 'Clear selected items from right',
+            moveAllTitle: 'Move all to right',
+            removeAllTitle: 'Clear all items from right',
+            noAvailableData: 'No Data Available',
+            noAddedData: 'No Data Added'
+        };
 
-    let regionalDefaults = {
-        selectAll : 'Select All',
-        filter: 'Filter',
-        moveRight: 'Move to right',
-        removeRight: 'Remove from right',
-        moveUp : '↑',
-        moveDown: '↓',
-        moveUpTitle: 'Move up',
-        moveDownTitle: 'Move down',
-        moveSelected: '>',
-        removeSelected: '<',
-        moveAll: '>>',
-        removeAll: '<<',
-        moveSelectedTitle: 'Move selected to right',
-        removeSelectedTitle: 'Clear selected items from right',
-        moveAllTitle: 'Move all to right',
-        removeAllTitle: 'Clear all items from right',
-        noAvailableData: 'No Data Available',
-        noAddedData: 'No Data Added'
-    }
+        // This method is called with init() and creates a container where all required elements will be appended
+        function createBox() {
+            const $mainContainer = $('<div class="main"></div>');
+            const $dragBox = $('<div class="dragBox"></div>');
+            const $dropBox = $('<div class="dropBox"></div>');
+            const $buttonBox = $('<div class="buttonBox"></div>');
+            const $buttonBoxHdr = $('<div class="buttonBoxHdr"></div>');
+            $draggable = $('<ul id="draggable"></ul>');
+            $droppable = $('<ul id="droppable"></ul>');
 
-    // This method is called with init() and creates a container where all required elements will be appended
-    function createBox() {
-        // create the main container element
-        const box = $('<div class="main"></div>');
-        // the box for all the available list
-        const dragBox = $('<div class="dragBox"></div>');
-        // the box for all the selected list
-        const dropBox = $('<div class="dropBox"></div>');
-        // button box container having all the buttons for moving elements
-        const buttonBox = $('<div class="buttonBox"></div>');
-        // ul element where all available list items will be added
-        const dragList = $('<ul id="draggable"></ul>');
-        // ul element where all selected list items will be added
-        const dropList = $(' <ul id="droppable"></ul>');
-        // buttons for adding and removing elements
-        const buttonBoxHdr = $('<div class="buttonBoxHdr"></div>');
-        const addAll = $('<span class="addAll btn btn-primary" tabindex="0" title="' + regionalDefaults.moveAllTitle + '">'
-                        + regionalDefaults.moveAll + '</span>');
-        const addSelected = $('<span class="addSelected btn btn-primary" tabindex="0" title="' + regionalDefaults.moveSelectedTitle + '">'
-                        + regionalDefaults.moveSelected + '</span>');
-        const removeAll = $('<span class="removeAll btn btn-primary" tabindex="0" title="' + regionalDefaults.removeAllTitle + '">'
-                        + regionalDefaults.removeAll + '</span>');
-        const removeSelected = $('<span class="removeSelected btn btn-primary" tabindex="0" title="' + regionalDefaults.removeSelectedTitle + '">'
-                        + regionalDefaults.removeSelected + '</span>');
-        // select all checkbox for available items
-        const selectAlldrag = $('<div class="selectAlldrag"></div>');
-        const selectAlldragChkBox = $('<label title="'+ regionalDefaults.selectAll + '"><input id="selectAlldragChkBox" type="checkbox"></input>'
-                                    + regionalDefaults.selectAll + '</label>');
-        // select all checkbox for selected items
-        const selectAlldrop = $('<div class="selectAlldrop"></div>');
-        const selectAlldropChkBox = $('<label title="'+ regionalDefaults.selectAll + '"><input id="selectAlldropChkBox" type="checkbox"></input>'
-                                    + regionalDefaults.selectAll + '</label>');
-        // filter box for filtering items
-        const dragFilterBox =  $('<input id="dragFilterBox" type="text" title="'+ regionalDefaults.filter + '" placeholder="'
-                               + regionalDefaults.filter + '"></input>');
-        // for moving selected elements up and down 
-        const navigator = $('<div class="navigator"></div>');
-        const dropUpNav = $('<span class="dropUpNav btn btn-primary" tabindex="0" title="' + regionalDefaults.moveUpTitle + '">' + regionalDefaults.moveUp + '</span>');
-        const dropDownNav = $('<span class="dropDownNav btn btn-primary" tabindex="0" title="'+ regionalDefaults.moveDownTitle + '">' + regionalDefaults.moveDown + '</span>');
-        // event listener for selecting all element
-        selectAlldragChkBox.on('click', function(e){
-            selectAllList(this, e);
-        });
-        selectAlldropChkBox.on('click', function(e){
-            selectAllList(this, e);
-        });
-        // event listener for filter
-        dragFilterBox.on('input', function(e){
-            filterList(this, e);
-        });
-        // listener for moving elements up and down
-        dropUpNav.on('click', function(){
-            navUp();
-        });
-        dropDownNav.on('click', function(){
-            navDown();
-        });
-        // add/remove selected or all elements
-        addSelected.on('click', function(){
-            addSelectedOptions();
-        });
-        removeSelected.on('click', function(){
-            removeSelectedOptions();
-        });
-        addAll.on('click', function(){
-           moveAllOptions();
-        });
-        removeAll.on('click', function(){
-            removeAllOptions();
-         });
-        selectAlldragChkBox.appendTo(selectAlldrag);
-        selectAlldropChkBox.appendTo(selectAlldrop);
-        dropUpNav.appendTo(navigator);
-        dropDownNav.appendTo(navigator);
-        navigator.appendTo(selectAlldrop);
-        dragFilterBox.appendTo(selectAlldrag);
-        buttonBoxHdr.appendTo(buttonBox);
-        addSelected.appendTo(buttonBoxHdr);
-        removeSelected.appendTo(buttonBoxHdr);
-        addAll.appendTo(buttonBoxHdr);
-        removeAll.appendTo(buttonBoxHdr);
-        selectAlldrag.appendTo(dragBox);
-        dragList.appendTo(dragBox);
-        selectAlldrop.appendTo(dropBox);
-        dropList.appendTo(dropBox);
-        dragBox.appendTo(box);
-        buttonBox.appendTo(box);
-        dropBox.appendTo(box);
-        createDragBox(availableList, dragList);
-        createDropBox(selectedList, dropList);
-        // returns complete html box with all the required child elements
-        return box;
-    }
+            const $addAll = $('<button class="addAll btn btn-primary"></span>')
+                .attr('title', regionalDefaults.moveAllTitle)
+                .text(regionalDefaults.moveAll);
+            $addAll.on('click', function() {
+                moveAllOptions();
+            });
 
-    // for creating a watermark when list is empty
-    function createNodata(target, text) {
-        const noData = $('<div class="noData">' + text + '</div>');
-        noData.appendTo(target);
-    }
+            const $addSelected = $(
+                '<button class="addSelected btn btn-primary"></span>'
+            )
+                .attr('title', regionalDefaults.moveSelectedTitle)
+                .text(regionalDefaults.moveSelected);
+            $addSelected.on('click', function() {
+                addSelectedOptions();
+            });
 
-    // create available list
-    function createDragBox(list, dragList) {
+            const $removeAll = $(
+                '<button class="removeAll btn btn-primary"></span>'
+            )
+                .attr('title', regionalDefaults.removeAllTitle)
+                .text(regionalDefaults.removeAll);
+            $removeAll.on('click', function() {
+                removeAllOptions();
+            });
 
-        if(list.length === 0) {
-            const text = regionalDefaults.noAvailableData;
-            createNodata(dragList.parent(), text);
-            return;
+            const $removeSelected = $(
+                '<button class="removeSelected btn btn-primary"></span>'
+            )
+                .attr('title', regionalDefaults.removeSelectedTitle)
+                .text(regionalDefaults.removeSelected);
+            $removeSelected.on('click', function() {
+                removeSelectedOptions();
+            });
+
+            const $selectAllDragBox = $('<div class="selectAlldrag"></div>');
+            const $selectAllDragBoxLabel = $('<label></label>').attr(
+                'title',
+                regionalDefaults.selectAll
+            );
+            const $selectAllDragChkBox = $(
+                '<input id="selectAlldragChkBox" type="checkbox"></input>'
+            ).appendTo($selectAllDragBoxLabel);
+            $selectAllDragBoxLabel.append(regionalDefaults.selectAll);
+            $selectAllDragBoxLabel.on('click', function(e) {
+                selectAllList(this, e);
+            });
+
+            const $selectAllDropBox = $('<div class="selectAlldrop"></div>');
+            const $selectAllDropBoxLabel = $('<label></label>').attr(
+                'title',
+                regionalDefaults.selectAll
+            );
+            const $selectAllDropChkBox = $(
+                '<input id="selectAlldropChkBox" type="checkbox"></input>'
+            ).appendTo($selectAllDropBoxLabel);
+            $selectAllDropBoxLabel.append(regionalDefaults.selectAll);
+            $selectAllDropBoxLabel.on('click', function(e) {
+                selectAllList(this, e);
+            });
+
+            const $dragFilterBox = $(
+                '<input id="dragFilterBox" type="text"></input>'
+            ).attr({
+                title: regionalDefaults.filter,
+                placeholder: regionalDefaults.filter,
+                'aria-label': regionalDefaults.filter
+            });
+            $dragFilterBox.on('input', function() {
+                filterList(this);
+            });
+
+            const $navigator = $('<div class="navigator"></div>');
+            const $moveUpNavigator = $(
+                '<button class="dropUpNav btn btn-primary"></button>'
+            )
+                .attr('title', regionalDefaults.moveUpNavigatorTitle)
+                .text(regionalDefaults.moveUpNavigator);
+            $moveUpNavigator.on('click', function() {
+                navUp();
+            });
+            const $moveDownNavigator = $(
+                '<button class="dropDownNav btn btn-primary"></button>'
+            )
+                .attr('title', regionalDefaults.moveDownNavigatorTitle)
+                .text(regionalDefaults.moveDownNavigator);
+            $moveDownNavigator.on('click', function() {
+                navDown();
+            });
+
+            $selectAllDragBoxLabel.appendTo($selectAllDragBox);
+            $selectAllDropBoxLabel.appendTo($selectAllDropBox);
+            $moveUpNavigator.appendTo($navigator);
+            $moveDownNavigator.appendTo($navigator);
+            $navigator.appendTo($selectAllDropBox);
+            $dragFilterBox.appendTo($selectAllDragBox);
+            $buttonBoxHdr.appendTo($buttonBox);
+            $addSelected.appendTo($buttonBoxHdr);
+            $removeSelected.appendTo($buttonBoxHdr);
+            $addAll.appendTo($buttonBoxHdr);
+            $removeAll.appendTo($buttonBoxHdr);
+            $selectAllDragBox.appendTo($dragBox);
+            $draggable.appendTo($dragBox);
+            $selectAllDropBox.appendTo($dropBox);
+            $droppable.appendTo($dropBox);
+            $dragBox.appendTo($mainContainer);
+            $buttonBox.appendTo($mainContainer);
+            $dropBox.appendTo($mainContainer);
+            createDragBox(availableList, $draggable);
+            createDropBox(selectedList, $droppable);
+            return $mainContainer;
         }
 
-        list.forEach(function(elem){
-            const button = $('<span class="dragButton ui-icon ui-icon-plus" title="'+ regionalDefaults.moveRight + '" tabindex="0"></span>');
-            const chkBox = $('<label title="'+ columnPair[elem] + '"><input id="dragChkBox" type="checkbox"></input>'+ columnPair[elem] +'</label>');
-            const listItem = $('<li title="'+ columnPair[elem] + '" class="' + elem + '" tabindex="0" data-attribute="' + elem + '"></li>');
-            listItem.on('click keypress', function(e) {
-                if(e.which === 1 || e.which === 13)
-                    selectList(this, e);
-            });
-            chkBox.appendTo(listItem);
-            button.appendTo(listItem);
-            listItem.appendTo(dragList);
-        });
-        dragList.parent().find('.noData').remove();
-    }
-
-    // create pre-selected list
-    function createDropBox(list, dropList) {
-
-        if(list.length === 0) {
-            const text = regionalDefaults.noAddedData;
-            createNodata(dropList.parent(), text);
-            return;
-        }
-
-        list.forEach(function(elem){
-            const button = $('<span class="dropButton ui-icon ui-icon-minus" title="'+ regionalDefaults.removeRight + '" tabindex="0"></span>');
-            const chkBox = $('<label title="'+ columnPair[elem] + '"><input id="dropChkBox" type="checkbox"></input>'+ columnPair[elem] +'</label>');
-            const listItem = $('<li title="'+ columnPair[elem] + '" class="' + elem + '" tabindex="0" data-attribute="' + elem + '"></li>');
-            const upButton = $('<span class="upButton btn btn-primary" tabindex="0" title="'+ regionalDefaults.moveUpTitle +'">' + regionalDefaults.moveUp + '</span>');
-            const downButton = $('<span class="downButton btn btn-primary" tabindex="0" title="'+ regionalDefaults.moveDownTitle +'">' + regionalDefaults.moveDown + '</span>');
-            // attach functions of up and down button
-            upButton.on('click', function(e) {
-                e.stopPropagation();
-                goUp(this, e);
-            });
-            downButton.on('click', function(e) {
-                e.stopPropagation();
-                goDown(this, e);
-            });
-            listItem.on('click', function(e) {
-                if(e.which === 1 || e.which === 13)
-                    selectList(this, e);
-            });
-            chkBox.appendTo(listItem);
-            upButton.appendTo(listItem);
-            downButton.appendTo(listItem);
-            button.appendTo(listItem);
-            listItem.appendTo(dropList);
-        });
-    }
-
-    // method for selecting/de-selecting item(s)
-    function selectList(that, e) {
-        if(e.target === $(that).find('.dropButton')[0] || e.target === $(that).find('.dragButton')[0])
-            return;
-        if(e.target !== $(that).find('label')[0])
-            that.classList.toggle('ui-state-highlight');
-        if(e.target !== $(that).find('input')[0] && e.target !== $(that).find('label')[0]) {
-            $(that).find('input').prop('checked')
-              ? $(that).find('input').prop('checked', false)
-              : $(that).find('input').prop('checked', true);
-        }
-    }
-
-    // method for selecting/de-selecting all items
-    function selectAllList(that, e) {
-        const attributes = $(that).parent().next().children();
-        const isChecked = $(that).find('input').prop('checked');
-        if(e.target !== that && attributes.length > 0) {
-            for(let attr of attributes){
-                if(isChecked) {
-                    $(attr).find('input').prop('checked', true);
-                    $(attr).addClass('ui-state-highlight');
-                }
-                else {
-                    $(attr).find('input').prop('checked', false);
-                    $(attr).removeClass('ui-state-highlight');
-                }
+        function createEmptyDataWatermark($target, watermark) {
+            if ($target.find('.noData').length < 1) {
+                const $noData = $('<div class="noData"></div>').text(watermark);
+                $noData.appendTo($target);
             }
         }
-    }
 
-    $(document).on('click keypress', '.dragButton', function(e){
-        if(e.which === 1 || e.which === 13)
-            addToSelectedList(this, e);
-    });
-
-    $(document).on('click keypress', '.dropButton', function(e){
-        if(e.which === 1 || e.which === 13)
-            removeFromSelectedList(this, e);
-    });
-
-    // add element to select list
-    function addToSelectedList(that, e) {
-        const upButton = $('<span class="upButton btn btn-primary" tabindex="0" title="'+ regionalDefaults.moveUpTitle +'">' + regionalDefaults.moveUp + '</span>');
-        const downButton = $('<span class="downButton btn btn-primary" tabindex="0" title="'+ regionalDefaults.moveDownTitle +'">' + regionalDefaults.moveDown + '</span>');
-        // attach functions of up and down button
-        upButton.on('click', function(e) {
-            goUp(this, e);
-            e.stopPropagation();
-        });
-        downButton.on('click', function(e) {
-            goDown(this, e);
-            e.stopPropagation();
-        });
-        $(that).switchClass('ui-icon-plus', 'ui-icon-minus');
-        $(that).switchClass('dragButton', 'dropButton');
-        const attribute = $(that).parent();
-        const dragBox = $('#draggable');
-        const dropBox = $('#droppable')
-        dragBox.find(attribute).remove();
-        attribute.on('click', function(e) {
-            selectList(this, e);
-        });
-        upButton.insertBefore(attribute.find('.dropButton'));
-        downButton.insertBefore(attribute.find('.dropButton'));
-        dropBox.append(attribute);
-        availableList = availableList.filter(function(elem) {
-            return elem !== $(attribute[0]).attr('data-attribute');
-        })
-        if(dragBox.children().length === 0) {
-            const text = regionalDefaults.noAvailableData;
-            createNodata(dragBox.parent(), text);
-            dropBox.parent().find('.noData').remove();
-        }
-        else {
-            $('.noData').remove();
-        }
-    }
-
-    // remove element from select list
-    function removeFromSelectedList(that, e) {
-        $(that).switchClass('ui-icon-minus', 'ui-icon-plus');
-        $(that).switchClass('dropButton', 'dragButton');
-        const attribute = $(that).parent();
-        const dragBox = $('#draggable');
-        const dropBox = $('#droppable')
-        attribute.find('.upButton').remove();
-        attribute.find('.downButton').remove();
-        dropBox.find(attribute).remove();
-        attribute.on('click', function(e) {
-            selectList(this, e);
-        });
-        dragBox.prepend(attribute);
-        availableList.push($(attribute[0]).attr('data-attribute'));
-        if(dropBox.children().length === 0){
-            const text = regionalDefaults.noAddedData;
-            createNodata(dropBox.parent(), text);
-            dragBox.parent().find('.noData').remove();;
-        }
-        else {
-            $('.noData').remove();
-        }
-    }
-
-    function addSelectedOptions() {
-        const selectedOptions = $('#draggable').children().filter(function(idx, el) {
-            return el.classList.contains('ui-state-highlight');
-        });
-        selectedOptions.each(function(idx, elem){
-            addToSelectedList(elem.lastChild);
-        });
-        $('#selectAlldragChkBox').prop('checked', false);
-    }
-
-    function removeSelectedOptions() {
-        const selectedOptions = $('#droppable').children().filter(function(idx, el) {
-            return el.classList.contains('ui-state-highlight');
-        }).sort(function(){
-            return -1;
-        });
-        selectedOptions.each(function(idx, elem){
-            removeFromSelectedList(elem.lastChild);
-        });
-        $('#selectAlldropChkBox').prop('checked', false);
-    }
-
-    function moveAllOptions() {
-        const selectedOptions = $('#draggable').children();
-        selectedOptions.each(function(idx, elem){
-            addToSelectedList(elem.lastChild);
-        });
-    }
-
-    function removeAllOptions() {
-        const selectedOptions = $('#droppable').children().sort(function(){
-            return -1;
-        });
-        selectedOptions.each(function(idx, elem){
-            removeFromSelectedList(elem.lastChild);
-        });
-    }
-
-    // method for filtering list
-    function filterList(that, e) {
-        const dragBox = $('#draggable');
-        const searchValue = new RegExp(e.target.value, 'i');
-        dragBox.empty();
-        const newList = availableList.filter(function(elem){
-            return columnPair[elem].match(searchValue);
-        });
-        createDragBox(newList, dragBox);
-    }
-
-    function navUp() {
-        const dropBox = $('#droppable');
-        const selectedItem = dropBox.children().filter(function(idx, el) {
-           return el.classList.contains('ui-state-highlight');
-        });
-        if(selectedItem.length > 0) {
-            selectedItem.each(function(idx, item){
-                if($(item).prev().length > 0) {
-                    let prevElement = $(item).prev();
-                    const upButton = $(item).find('.upButton');
-                    const downButton = $(item).find('.downButton');
-                    dropBox.find(item).remove();
-                    $(item).insertBefore(prevElement);
-                    $(item).on('click', function(e) {
-                        selectList(this, e);
-                    });
-                    // attach functions of up and down button
-                    upButton.on('click', function(e) {
-                        goUp(this, e);
-                        e.stopPropagation();
-                    });
-                    downButton.on('click', function(e) {
-                        goDown(this, e);
-                        e.stopPropagation();
-                    });
-                }
-            });
-            selectedItem.focus();
-        }
-    }
-
-    function navDown() {
-        const dropBox = $('#droppable');
-        const selectedItem = dropBox.children().filter(function(idx, el) {
-           return el.classList.contains('ui-state-highlight');
-        }).sort(function(a,b) {
-            return -1;
-        });
-        if(selectedItem.length > 0) {
-            selectedItem.each(function(idx, item){
-                if($(item).next().length > 0) {
-                    let nextElement = $(item).next();
-                    const upButton = $(item).find('.upButton');
-                    const downButton = $(item).find('.downButton');
-                    dropBox.find(item).remove();
-                    $(item).insertAfter(nextElement);
-                    $(item).on('click', function(e) {
-                        selectList(this, e);
-                    });
-                    // attach functions of up and down button
-                    upButton.on('click', function(e) {
-                        goUp(this, e);
-                        e.stopPropagation();
-                    });
-                    downButton.on('click', function(e) {
-                        goDown(this, e);
-                        e.stopPropagation();
-                    });
-                }
-            });
-            selectedItem.focus();
-        }
-    }
-
-    function goUp(that, e) {
-        const currentElement = $(that).parent();
-        const prevElement = currentElement.prev();
-        const upButton = currentElement.find('.upButton');
-        const downButton = currentElement.find('.downButton');
-        if(prevElement.length > 0) {
-            currentElement.remove();
-            upButton.on('click', function(e) {
-                goUp(this, e);
-                e.stopPropagation();
-            });
-            downButton.on('click', function(e) {
-                goDown(this, e);
-                e.stopPropagation();
-            });
-            currentElement.on('click', function(e) {
-                selectList(this, e);
-            });
-            currentElement.insertBefore(prevElement);
-        }
-    }
-
-    function goDown(that, e) {
-        const currentElement = $(that).parent();
-        const nextElement = currentElement.next();
-        const upButton = currentElement.find('.upButton');
-        const downButton = currentElement.find('.downButton');
-        if(nextElement.length > 0) {
-            currentElement.remove();
-            upButton.on('click', function(e) {
-                goUp(this, e);
-                e.stopPropagation();
-            });
-            downButton.on('click', function(e) {
-                goDown(this, e);
-                e.stopPropagation();
-            });
-            currentElement.on('click', function(e) {
-                selectList(this, e);
-            });
-            currentElement.insertAfter(nextElement);
-        }
-    }
-
-    return {
-        init: function(element, options) {
-            if(element === undefined || element === null || options.columnPair === undefined || options.columnPair.length === 0) {
-                alert('Empty elements, Column Chooser cannot be intialised.');
+        function createDragBox(list, $dragList) {
+            if (list.length === 0) {
+                const watermark = regionalDefaults.noAvailableData;
+                createEmptyDataWatermark($dragList.parent(), watermark);
                 return;
             }
-            columnPair = options.columnPair;
-            availableList = options.availableList;
-            selectedList= options.selectedList || [];
-            createBox().appendTo(element);
-        },
-        done: function() {
-            let preferences = $('#droppable').children().map(function(idx, item) {
-                return $(item).attr('data-attribute');
+
+            list.forEach(function(elem) {
+                const itemName = columnPair[elem];
+                const $addButton = $(
+                    '<button class="dragButton ui-icon ui-icon-plus"></button>'
+                ).attr('title', regionalDefaults.moveRight);
+                const $chkBoxLabel = $('<label></label>').attr(
+                    'title',
+                    itemName
+                );
+                const $checkBox = $('<input type="checkbox"></input>')
+                    .attr('id', 'dragChkBox_' + elem)
+                    .appendTo($chkBoxLabel);
+                $chkBoxLabel.append(itemName);
+                const $listAttributes = $('<li></li>')
+                    .attr({
+                        class: elem.replace(/ /g, '') + '_attr',
+                        title: itemName,
+                        tabindex: 0,
+                        'data-attribute': elem
+                    })
+                    .on('click keypress', function(e) {
+                        if (e.which === 1 || e.which === 13)
+                            selectList(this, e);
+                    });
+                $chkBoxLabel.appendTo($listAttributes);
+                $addButton.appendTo($listAttributes);
+                $listAttributes.appendTo($dragList);
             });
-            return {
-                selectedList: $('#droppable').children(),
-                parentElement: $('#droppable'),
-                list: preferences.get()
+            $dragList.parent().find('.noData').remove();
+        }
+
+        function createDropBox(list, $dropList) {
+            if (list.length === 0) {
+                const watermark = regionalDefaults.noAddedData;
+                createEmptyDataWatermark($dropList.parent(), watermark);
+                return;
+            }
+
+            list.forEach(function(elem) {
+                const itemName = columnPair[elem];
+                const $removeButton = $(
+                    '<button class="dropButton ui-icon ui-icon-minus"></button>'
+                ).attr('title', regionalDefaults.removeRight);
+                const $chkBoxLabel = $('<label></label>').attr(
+                    'title',
+                    itemName
+                );
+                const $checkBox = $('<input type="checkbox"></input>')
+                    .attr('id', 'dropChkBox_' + elem)
+                    .appendTo($chkBoxLabel);
+                $chkBoxLabel.append(itemName);
+                const $listAttributes = $('<li></li>')
+                    .attr({
+                        class: elem.replace(/ /g, '') + '_attr',
+                        title: itemName,
+                        tabindex: 0,
+                        'data-attribute': elem
+                    })
+                    .on('click keypress', function(e) {
+                        if (e.which === 1 || e.which === 13)
+                            selectList(this, e);
+                    });
+
+                const $upButton = $(
+                    '<button class="upButton btn btn-primary"></button>'
+                )
+                    .attr('title', regionalDefaults.moveUpTitle)
+                    .text(regionalDefaults.moveUp);
+                const $downButton = $(
+                    '<button class="downButton btn btn-primary"></button>'
+                )
+                    .attr('title', regionalDefaults.moveDownTitle)
+                    .text(regionalDefaults.moveDown);
+                $upButton.on('click', function(e) {
+                    e.stopPropagation();
+                    goUp(this, e);
+                });
+                $downButton.on('click', function(e) {
+                    e.stopPropagation();
+                    goDown(this, e);
+                });
+
+                $chkBoxLabel.appendTo($listAttributes);
+                $upButton.appendTo($listAttributes);
+                $downButton.appendTo($listAttributes);
+                $removeButton.appendTo($listAttributes);
+                $listAttributes.appendTo($dropList);
+            });
+            $dropList.parent().find('.noData').remove();
+        }
+
+        function selectList(selectedItem, e) {
+            const $target = $(e.target);
+            if (
+                $target.is('.dropButton, .dragButton, .upButton, .downButton')
+            ) {
+                return;
+            }
+            if (!$target.is('label')) {
+                $(selectedItem).toggleClass('ui-state-highlight');
+            }
+            if (!$target.is('input, label')) {
+                $(selectedItem).find('input').prop('checked', function(i, val) {
+                    return !val;
+                });
             }
         }
-    }
-})(jQuery);
+
+        function selectAllList(target, event) {
+            const $attributes = $(target).parent().next().children();
+            const isChecked = $(target).find('input').prop('checked');
+            if (event.target !== target && $attributes.length > 0) {
+                $attributes.each(function() {
+                    const $input = $(this).find('input');
+                    $input.prop('checked', isChecked);
+                    $(this).toggleClass('ui-state-highlight', isChecked);
+                });
+            }
+        }
+
+        $(document).on('click', '.dragButton', function(e) {
+            addToSelectedList($(this).parent(), e);
+        });
+
+        $(document).on('click', '.dropButton', function(e) {
+            removeFromSelectedList($(this).parent(), e);
+        });
+
+        function addToSelectedList($attribute) {
+            const $upButton = $(
+                '<button class="upButton btn btn-primary"></button>'
+            )
+                .attr('title', regionalDefaults.moveUpTitle)
+                .text(regionalDefaults.moveUp);
+            $upButton.on('click', function(e) {
+                goUp(this, e);
+                e.stopPropagation();
+            });
+            const $downButton = $(
+                '<button class="downButton btn btn-primary"></button>'
+            )
+                .attr('title', regionalDefaults.moveDownTitle)
+                .text(regionalDefaults.moveDown);
+            $downButton.on('click', function(e) {
+                goDown(this, e);
+                e.stopPropagation();
+            });
+            const $button = $attribute.find('.dragButton');
+            $button.switchClass('ui-icon-plus', 'ui-icon-minus');
+            $button.switchClass('dragButton', 'dropButton');
+            $button.attr('title', regionalDefaults.removeRight);
+            $attribute.remove();
+            $attribute.on('click', function(e) {
+                selectList(this, e);
+            });
+            $upButton.insertBefore($button);
+            $downButton.insertBefore($button);
+            $droppable.append($attribute);
+            $attribute.focus();
+            availableList = availableList.filter(function(elem) {
+                return elem !== $attribute.attr('data-attribute');
+            });
+            $('#dragFilterBox').val('').trigger('input');
+            $droppable.triggerHandler('elementChange');
+            if ($draggable.children().length === 0) {
+                const watermark = regionalDefaults.noAvailableData;
+                createEmptyDataWatermark($draggable.parent(), watermark);
+                $droppable.parent().find('.noData').remove();
+            } else {
+                $('.noData').remove();
+            }
+        }
+
+        function removeFromSelectedList($attribute) {
+            const $button = $attribute.find('.dropButton');
+            $button.switchClass('ui-icon-minus', 'ui-icon-plus');
+            $button.switchClass('dropButton', 'dragButton');
+            $button.attr('title', regionalDefaults.moveRight);
+            $attribute.find('.upButton').remove();
+            $attribute.find('.downButton').remove();
+            $attribute.remove();
+            $attribute.on('click', function(e) {
+                selectList(this, e);
+            });
+            $draggable.prepend($attribute);
+            $attribute.focus();
+            $droppable.triggerHandler('elementChange');
+            availableList.push($attribute.attr('data-attribute'));
+            if ($droppable.children().length === 0) {
+                const watermark = regionalDefaults.noAddedData;
+                createEmptyDataWatermark($droppable.parent(), watermark);
+                $draggable.parent().find('.noData').remove();
+            } else {
+                $('.noData').remove();
+            }
+        }
+
+        function addSelectedOptions() {
+            const $selectedOptions = $draggable.find(':checkbox:checked');
+            $selectedOptions.each(function(idx, elem) {
+                const $parent = $(elem).parent().parent();
+                addToSelectedList($parent);
+            });
+            $('#selectAlldragChkBox').prop('checked', false);
+        }
+
+        function removeSelectedOptions() {
+            const $selectedOptions = $droppable
+                .find(':checkbox:checked')
+                .sort(function() {
+                    return -1;
+                });
+            $selectedOptions.each(function(idx, elem) {
+                const $parent = $(elem).parent().parent();
+                removeFromSelectedList($parent);
+            });
+            $('#selectAlldropChkBox').prop('checked', false);
+        }
+
+        function moveAllOptions() {
+            const $selectedOptions = $draggable.children();
+            $selectedOptions.each(function(idx, elem) {
+                const $parent = $(elem);
+                addToSelectedList($parent);
+            });
+            $('#selectAlldragChkBox').prop('checked', false);
+        }
+
+        function removeAllOptions() {
+            const $selectedOptions = $droppable.children().sort(function() {
+                return -1;
+            });
+            $selectedOptions.each(function(idx, elem) {
+                const $parent = $(elem);
+                removeFromSelectedList($parent);
+            });
+            $('#selectAlldropChkBox').prop('checked', false);
+        }
+
+        function filterList(input) {
+            // Disable the select all checkBox
+            $(input).parent().find(':checkbox').prop('checked', false);
+            const searchValue = new RegExp(input.value, 'i');
+            $draggable.empty();
+            const newList = availableList
+                .filter(function(elem) {
+                    return columnPair[elem].match(searchValue);
+                })
+                .sort(function(a, b) {
+                    return columnPair[a].localeCompare(columnPair[b]);
+                });
+            createDragBox(newList, $draggable);
+        }
+
+        function navUp() {
+            const $selectedItem = $droppable.children('.ui-state-highlight');
+            if ($selectedItem.length > 0) {
+                $selectedItem.each(function(idx, item) {
+                    const $prevElement = $(item).prev();
+                    if ($prevElement.length > 0) {
+                        $(item).insertBefore($prevElement);
+                    }
+                });
+                $selectedItem.focus();
+            }
+        }
+
+        function navDown() {
+            const $selectedItem = $droppable
+                .children('.ui-state-highlight')
+                .sort(function() {
+                    return -1;
+                });
+            if ($selectedItem.length > 0) {
+                $selectedItem.each(function(idx, item) {
+                    const $nextElement = $(item).next();
+                    if ($nextElement.length > 0) {
+                        $(item).insertAfter($nextElement);
+                    }
+                });
+                $selectedItem.focus();
+            }
+        }
+
+        function goUp(target, e) {
+            const $currentElement = $(target).parent();
+            const $prevElement = $currentElement.prev();
+            if ($prevElement.length > 0) {
+                $currentElement.insertBefore($prevElement);
+                $currentElement.focus();
+            }
+        }
+
+        function goDown(target, e) {
+            const $currentElement = $(target).parent();
+            const $nextElement = $currentElement.next();
+            if ($nextElement.length > 0) {
+                $currentElement.insertAfter($nextElement);
+                $currentElement.focus();
+            }
+        }
+
+        return {
+            init: function(targetElement, options) {
+                if (
+                    targetElement == null ||
+                    options.columnPair === undefined ||
+                    options.columnPair.length === 0
+                ) {
+                    const emptyElementsMessage =
+                        'Empty elements, Column Chooser cannot be intialised.';
+                    alert(emptyElementsMessage);
+                    return;
+                }
+                // create a parent div for styling
+                const mainContainer = $('<div class="multiChooser"></div>');
+                columnPair = options.columnPair;
+                availableList = options.availableList.sort(function(a, b) {
+                    if (columnPair[a] === columnPair[b]) return 0;
+                    return columnPair[a] < columnPair[b] ? -1 : 1;
+                });
+                selectedList = options.selectedList || [];
+                totalList = selectedList.concat(availableList);
+                createBox().appendTo(mainContainer);
+                // append the container to target element
+                mainContainer.appendTo(targetElement);
+                $droppable.on('elementChange', function() {
+                    if (options.onElementChange) options.onElementChange();
+                });
+            },
+            getSelectedPreferences: function() {
+                const preferences = $droppable
+                    .children()
+                    .map(function(idx, item) {
+                        return $(item).attr('data-attribute');
+                    })
+                    .get();
+                return {
+                    selectedList: $droppable.children(),
+                    parentElement: $droppable,
+                    list: preferences
+                };
+            },
+            resetToDefault: function(defaultList) {
+                // remove drag and drop list
+                $draggable.empty();
+                $droppable.empty();
+                $('#selectAlldropChkBox').prop('checked', false);
+                $('#selectAlldragChkBox').prop('checked', false);
+                selectedList = defaultList;
+                availableList = totalList
+                    .filter(function(elem) {
+                        return !selectedList.includes(elem);
+                    })
+                    .sort(function(a, b) {
+                        if (columnPair[a] === columnPair[b]) return 0;
+                        return columnPair[a] < columnPair[b] ? -1 : 1;
+                    });
+                createDragBox(availableList, $draggable);
+                createDropBox(selectedList, $droppable);
+            }
+        };
+    })(jQuery);
